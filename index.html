@@ -23,7 +23,7 @@
         const { useState, useEffect } = React;
 
         // Google Sheets API URL
-        const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzvfxGT1BP6guGLZeUduJqx1xVLt6dUtyFFNR2t78uKwooHZ2fz90P3XaJqclzNX9s/exec';
+        const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxS7aSf7IoH6kOFgVIwBX7dSaTtXNhV3iy8mD67R59JYXA6saDS4RDIsGKoKw8PqtqO/exec';
 
         // 품목 이름 매핑
         const ITEM_NAMES = [
@@ -86,23 +86,19 @@
                 }
             };
 
-            // Google Sheets에 데이터 저장
+            // Google Sheets에 데이터 저장 (GET 방식으로 변경)
             const saveToSheet = async (id, boxStock, packStock) => {
                 try {
                     setSyncing(true);
-                    const response = await fetch(SCRIPT_URL, {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                        },
-                        body: JSON.stringify({
-                            id: id,
-                            boxStock: boxStock,
-                            packStock: packStock
-                        })
-                    });
+                    const url = `${SCRIPT_URL}?action=save&id=${id}&boxStock=${boxStock}&packStock=${packStock}`;
+                    const response = await fetch(url);
                     
                     if (!response.ok) {
+                        throw new Error('저장 실패');
+                    }
+                    
+                    const result = await response.json();
+                    if (!result.success) {
                         throw new Error('저장 실패');
                     }
                 } catch (error) {
