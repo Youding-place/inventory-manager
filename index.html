@@ -23,7 +23,7 @@
         const { useState, useEffect } = React;
 
         // Google Sheets API URL
-        const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxS7aSf7IoH6kOFgVIwBX7dSaTtXNhV3iy8mD67R59JYXA6saDS4RDIsGKoKw8PqtqO/exec';
+        const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycby10nKagNOr7y0Z9_mB9ZZXrjNHY27VJPywEX2QonbkmMZ6Rv8y_dvp3HZAINnrM8oO/exec';
 
         // 품목 이름 매핑
         const ITEM_NAMES = [
@@ -58,6 +58,11 @@
             const [selectedItem, setSelectedItem] = useState(null);
             const [loading, setLoading] = useState(true);
             const [syncing, setSyncing] = useState(false);
+            const [longPressItem, setLongPressItem] = useState(null);
+            const [showAddModal, setShowAddModal] = useState(false);
+            const [newItemName, setNewItemName] = useState('');
+            
+            let pressTimer = null;
 
             // 초기 데이터 로드
             useEffect(() => {
@@ -71,10 +76,10 @@
                     const response = await fetch(SCRIPT_URL);
                     const data = await response.json();
                     
-                    // 품목 이름 추가
+                    // 품목 이름 추가 (기존 품목은 ITEM_NAMES 사용, 새 품목은 시트의 name 사용)
                     const inventoryWithNames = data.map((item, index) => ({
                         ...item,
-                        name: ITEM_NAMES[index] || `품목${item.id}`
+                        name: item.name || ITEM_NAMES[index] || `품목${item.id}`
                     }));
                     
                     setInventory(inventoryWithNames);
@@ -87,10 +92,10 @@
             };
 
             // Google Sheets에 데이터 저장 (GET 방식으로 변경)
-            const saveToSheet = async (id, boxStock, packStock) => {
+            const saveToSheet = async (id, boxStock, packStock, name) => {
                 try {
                     setSyncing(true);
-                    const url = `${SCRIPT_URL}?action=save&id=${id}&boxStock=${boxStock}&packStock=${packStock}`;
+                    const url = `${SCRIPT_URL}?action=save&id=${id}&boxStock=${boxStock}&packStock=${packStock}&name=${encodeURIComponent(name)}`;
                     const response = await fetch(url);
                     
                     if (!response.ok) {
@@ -108,6 +113,78 @@
                     setSyncing(false);
                 }
             };
+            
+            // 품목 추가
+            const addItem = async () => {
+                if (!newItemName.trim()) {
+                    alert('품목명을 입력해주세요.');
+                    return;
+                }
+                
+                const newId = inventory.length > 0 ? Math.max(...inventory.map(item => item.id)) + 1 : 1;
+                const newItem = {
+                    id: newId,
+                    name: newItemName.trim(),
+                    boxStock: 0,
+                    packStock: 0
+                };
+                
+                // 로컬 상태 업데이트
+                setInventory([...inventory, newItem]);
+                
+                // Google Sheets에 저장
+                await saveToSheet(newId, 0, 0, newItemName.trim());
+                
+                // 모달 닫기
+                setShowAddModal(false);
+                setNewItemName('');
+            };
+            
+            // 품목 삭제
+            const deleteItem = async (id) => {
+                if (!confirm('이 품목을 삭제하시겠습니까?')) {
+                    return;
+                }
+                
+                try {
+                    setSyncing(true);
+                    const url = `${SCRIPT_URL}?action=delete&id=${id}`;
+                    const response = await fetch(url);
+                    
+                    if (!response.ok) {
+                        throw new Error('삭제 실패');
+                    }
+                    
+                    const result = await response.json();
+                    if (!result.success) {
+                        throw new Error('삭제 실패');
+                    }
+                    
+                    // 로컬 상태 업데이트
+                    setInventory(inventory.filter(item => item.id !== id));
+                    setLongPressItem(null);
+                } catch (error) {
+                    console.error('삭제 실패:', error);
+                    alert('삭제에 실패했습니다. 다시 시도해주세요.');
+                } finally {
+                    setSyncing(false);
+                }
+            };
+            
+            // 롱프레스 시작
+            const handlePressStart = (id) => {
+                pressTimer = setTimeout(() => {
+                    setLongPressItem(id);
+                }, 500); // 0.5초 꾹 누르기
+            };
+            
+            // 롱프레스 취소
+            const handlePressEnd = () => {
+                if (pressTimer) {
+                    clearTimeout(pressTimer);
+                    pressTimer = null;
+                }
+            };
 
             const updateStock = async (id, unit, change) => {
                 // 로컬 상태 업데이트
@@ -116,12 +193,12 @@
                         if (unit === 'box') {
                             const newStock = Math.max(0, item.boxStock + change);
                             // Google Sheets에 저장
-                            saveToSheet(id, newStock, item.packStock);
+                            saveToSheet(id, newStock, item.packStock, item.name);
                             return { ...item, boxStock: newStock };
                         } else {
                             const newStock = Math.max(0, item.packStock + change);
                             // Google Sheets에 저장
-                            saveToSheet(id, item.boxStock, newStock);
+                            saveToSheet(id, item.boxStock, newStock, item.name);
                             return { ...item, packStock: newStock };
                         }
                     }
@@ -132,6 +209,7 @@
             };
 
             const handleItemClick = (id) => {
+                if (longPressItem === id) return; // 롱프레스 중이면 선택 안함
                 setSelectedItem(selectedItem === id ? null : id);
             };
 
@@ -160,18 +238,36 @@
                             </div>
                         </div>
 
-                        <div className="flex-1 p-2 sm:p-4">
+                        <div className="flex-1 p-2 sm:p-4 pb-20">
                             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2 sm:gap-3">
                                 {inventory.map((item) => (
-                                    <div key={item.id}>
+                                    <div key={item.id} className="relative">
                                         <div
                                             onClick={() => handleItemClick(item.id)}
+                                            onMouseDown={() => handlePressStart(item.id)}
+                                            onMouseUp={handlePressEnd}
+                                            onMouseLeave={handlePressEnd}
+                                            onTouchStart={() => handlePressStart(item.id)}
+                                            onTouchEnd={handlePressEnd}
                                             className={`border-2 rounded-xl p-2 sm:p-3 cursor-pointer transition-all ${
                                                 selectedItem === item.id
                                                     ? 'border-black bg-gray-200 shadow-lg'
+                                                    : longPressItem === item.id
+                                                    ? 'border-red-500 bg-red-50'
                                                     : 'border-gray-400 bg-white hover:border-gray-600 hover:shadow-md'
                                             }`}
                                         >
+                                            {longPressItem === item.id && (
+                                                <button
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        deleteItem(item.id);
+                                                    }}
+                                                    className="absolute -top-2 -right-2 w-8 h-8 bg-red-600 text-white rounded-full font-bold text-lg shadow-lg z-10 flex items-center justify-center"
+                                                >
+                                                    ×
+                                                </button>
+                                            )}
                                             <h3 className="text-sm sm:text-base font-bold text-black mb-1 sm:mb-2 text-center">
                                                 {item.name}
                                             </h3>
@@ -195,7 +291,7 @@
                                             </div>
                                         </div>
 
-                                        {selectedItem === item.id && (
+                                        {selectedItem === item.id && longPressItem !== item.id && (
                                             <div className="mt-2 bg-white border-2 border-black rounded-xl p-2 sm:p-3 shadow-lg">
                                                 {/* 박스 조절 */}
                                                 <div className="mb-2 sm:mb-3">
@@ -284,6 +380,55 @@
                                                 </div>
                                             </div>
                                         )}
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                        
+                        {/* 품목 추가 버튼 (하단 고정) */}
+                        <div className="fixed bottom-0 left-0 right-0 p-4 bg-white border-t-2 border-gray-300 shadow-lg">
+                            <button
+                                onClick={() => setShowAddModal(true)}
+                                className="w-full max-w-md mx-auto flex items-center justify-center gap-2 py-3 bg-black text-white rounded-lg font-bold text-lg active:bg-gray-800 transition-colors"
+                            >
+                                <span className="text-2xl">+</span>
+                                <span>품목 추가</span>
+                            </button>
+                        </div>
+                        
+                        {/* 품목 추가 모달 */}
+                        {showAddModal && (
+                            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+                                <div className="bg-white rounded-xl p-6 w-full max-w-md">
+                                    <h2 className="text-2xl font-bold text-black mb-4">새 품목 추가</h2>
+                                    <input
+                                        type="text"
+                                        value={newItemName}
+                                        onChange={(e) => setNewItemName(e.target.value)}
+                                        placeholder="품목명 입력"
+                                        className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg text-lg mb-4 focus:outline-none focus:border-black"
+                                        autoFocus
+                                    />
+                                    <div className="flex gap-3">
+                                        <button
+                                            onClick={() => {
+                                                setShowAddModal(false);
+                                                setNewItemName('');
+                                            }}
+                                            className="flex-1 py-3 bg-gray-300 text-black rounded-lg font-bold active:bg-gray-400 transition-colors"
+                                        >
+                                            취소
+                                        </button>
+                                        <button
+                                            onClick={addItem}
+                                            className="flex-1 py-3 bg-black text-white rounded-lg font-bold active:bg-gray-800 transition-colors"
+                                        >
+                                            추가
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
                                     </div>
                                 ))}
                             </div>
