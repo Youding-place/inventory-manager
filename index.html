@@ -207,14 +207,16 @@
             };
             
             // 롱프레스 시작
-            const handlePressStart = (id) => {
+            const handlePressStart = (id, e) => {
+                e.stopPropagation();
                 pressTimer = setTimeout(() => {
                     setLongPressItem(id);
                 }, 500); // 0.5초 꾹 누르기
             };
             
-            // 롱프레스 취소
-            const handlePressEnd = () => {
+            // 롱프레스 취소 (타이머만 클리어, 상태는 유지)
+            const handlePressEnd = (e) => {
+                if (e) e.stopPropagation();
                 if (pressTimer) {
                     clearTimeout(pressTimer);
                     pressTimer = null;
@@ -292,12 +294,16 @@
                                 {inventory.map((item) => (
                                     <div key={item.id} className="relative">
                                         <div
-                                            onClick={() => handleItemClick(item.id)}
-                                            onMouseDown={() => handlePressStart(item.id)}
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                handleItemClick(item.id);
+                                            }}
+                                            onMouseDown={(e) => handlePressStart(item.id, e)}
                                             onMouseUp={handlePressEnd}
                                             onMouseLeave={handlePressEnd}
-                                            onTouchStart={() => handlePressStart(item.id)}
+                                            onTouchStart={(e) => handlePressStart(item.id, e)}
                                             onTouchEnd={handlePressEnd}
+                                            onTouchCancel={handlePressEnd}
                                             className={`border-2 rounded-xl p-2 sm:p-3 cursor-pointer transition-all ${
                                                 selectedItem === item.id
                                                     ? 'border-black bg-gray-200 shadow-lg'
