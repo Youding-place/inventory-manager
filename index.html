@@ -225,6 +225,7 @@
             }
 
             return (
+                <>
                 <div className="w-full min-h-screen bg-gray-100 overflow-auto">
                     <div className="min-h-screen flex flex-col max-w-7xl mx-auto">
                         <div className="bg-black shadow-md p-3 sm:p-4 flex-shrink-0 sticky top-0 z-10">
@@ -384,53 +385,54 @@
                                 ))}
                             </div>
                         </div>
-                        
-                        {/* 품목 추가 버튼 (하단 고정) */}
-                        <div className="fixed bottom-0 left-0 right-0 p-4 bg-white border-t-2 border-gray-300 shadow-lg">
-                            <button
-                                onClick={() => setShowAddModal(true)}
-                                className="w-full max-w-md mx-auto flex items-center justify-center gap-2 py-3 bg-black text-white rounded-lg font-bold text-lg active:bg-gray-800 transition-colors"
-                            >
-                                <span className="text-2xl">+</span>
-                                <span>품목 추가</span>
-                            </button>
-                        </div>
-                        
-                        {/* 품목 추가 모달 */}
-                        {showAddModal && (
-                            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-                                <div className="bg-white rounded-xl p-6 w-full max-w-md">
-                                    <h2 className="text-2xl font-bold text-black mb-4">새 품목 추가</h2>
-                                    <input
-                                        type="text"
-                                        value={newItemName}
-                                        onChange={(e) => setNewItemName(e.target.value)}
-                                        placeholder="품목명 입력"
-                                        className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg text-lg mb-4 focus:outline-none focus:border-black"
-                                        autoFocus
-                                    />
-                                    <div className="flex gap-3">
-                                        <button
-                                            onClick={() => {
-                                                setShowAddModal(false);
-                                                setNewItemName('');
-                                            }}
-                                            className="flex-1 py-3 bg-gray-300 text-black rounded-lg font-bold active:bg-gray-400 transition-colors"
-                                        >
-                                            취소
-                                        </button>
-                                        <button
-                                            onClick={addItem}
-                                            className="flex-1 py-3 bg-black text-white rounded-lg font-bold active:bg-gray-800 transition-colors"
-                                        >
-                                            추가
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>
-                        )}
                     </div>
                 </div>
+                
+                {/* 품목 추가 버튼 (하단 고정) */}
+                <div className="fixed bottom-0 left-0 right-0 p-4 bg-white border-t-2 border-gray-300 shadow-lg">
+                    <button
+                        onClick={() => setShowAddModal(true)}
+                        className="w-full max-w-md mx-auto flex items-center justify-center gap-2 py-3 bg-black text-white rounded-lg font-bold text-lg active:bg-gray-800 transition-colors"
+                    >
+                        <span className="text-2xl">+</span>
+                        <span>품목 추가</span>
+                    </button>
+                </div>
+                
+                {/* 품목 추가 모달 */}
+                {showAddModal && (
+                    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+                        <div className="bg-white rounded-xl p-6 w-full max-w-md">
+                            <h2 className="text-2xl font-bold text-black mb-4">새 품목 추가</h2>
+                            <input
+                                type="text"
+                                value={newItemName}
+                                onChange={(e) => setNewItemName(e.target.value)}
+                                placeholder="품목명 입력"
+                                className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg text-lg mb-4 focus:outline-none focus:border-black"
+                                autoFocus
+                            />
+                            <div className="flex gap-3">
+                                <button
+                                    onClick={() => {
+                                        setShowAddModal(false);
+                                        setNewItemName('');
+                                    }}
+                                    className="flex-1 py-3 bg-gray-300 text-black rounded-lg font-bold active:bg-gray-400 transition-colors"
+                                >
+                                    취소
+                                </button>
+                                <button
+                                    onClick={addItem}
+                                    className="flex-1 py-3 bg-black text-white rounded-lg font-bold active:bg-gray-800 transition-colors"
+                                >
+                                    추가
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
+                </>
             );
         }
 
