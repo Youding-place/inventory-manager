@@ -23,7 +23,7 @@
         const { useState, useEffect } = React;
 
         // Google Sheets API URL
-        const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycby10nKagNOr7y0Z9_mB9ZZXrjNHY27VJPywEX2QonbkmMZ6Rv8y_dvp3HZAINnrM8oO/exec';
+        const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwqJpT4bfPBAB1Z2_njB7hKmG9JF52RjGyMhQoL_9h8s6XwU2jK0O80nhBZhmS11zNa/exec';
 
         // 품목 이름 매핑
         const ITEM_NAMES = [
@@ -171,6 +171,41 @@
                 }
             };
             
+            // 품목 순서 이동
+            const moveItem = async (id, direction) => {
+                const currentIndex = inventory.findIndex(item => item.id === id);
+                if (currentIndex === -1) return;
+                
+                const newIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
+                
+                // 범위 체크
+                if (newIndex < 0 || newIndex >= inventory.length) return;
+                
+                // 배열 순서 변경
+                const newInventory = [...inventory];
+                const [movedItem] = newInventory.splice(currentIndex, 1);
+                newInventory.splice(newIndex, 0, movedItem);
+                
+                // 로컬 상태 업데이트
+                setInventory(newInventory);
+                
+                // Google Sheets에 순서 저장
+                try {
+                    setSyncing(true);
+                    const url = `${SCRIPT_URL}?action=reorder&order=${encodeURIComponent(JSON.stringify(newInventory.map(item => item.id)))}`;
+                    const response = await fetch(url);
+                    
+                    if (!response.ok) {
+                        throw new Error('순서 저장 실패');
+                    }
+                } catch (error) {
+                    console.error('순서 저장 실패:', error);
+                    alert('순서 저장에 실패했습니다.');
+                } finally {
+                    setSyncing(false);
+                }
+            };
+            
             // 롱프레스 시작
             const handlePressStart = (id) => {
                 pressTimer = setTimeout(() => {
@@ -259,15 +294,44 @@
                                             }`}
                                         >
                                             {longPressItem === item.id && (
-                                                <button
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        deleteItem(item.id);
-                                                    }}
-                                                    className="absolute -top-2 -right-2 w-8 h-8 bg-red-600 text-white rounded-full font-bold text-lg shadow-lg z-10 flex items-center justify-center"
-                                                >
-                                                    ×
-                                                </button>
+                                                <>
+                                                    {/* 삭제 버튼 */}
+                                                    <button
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            deleteItem(item.id);
+                                                        }}
+                                                        className="absolute -top-2 -right-2 w-8 h-8 bg-red-600 text-white rounded-full font-bold text-lg shadow-lg z-10 flex items-center justify-center"
+                                                    >
+                                                        ×
+                                                    </button>
+                                                    
+                                                    {/* 위로 이동 버튼 */}
+                                                    {inventory.findIndex(i => i.id === item.id) > 0 && (
+                                                        <button
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                moveItem(item.id, 'up');
+                                                            }}
+                                                            className="absolute -top-2 -left-2 w-8 h-8 bg-blue-600 text-white rounded-full font-bold text-lg shadow-lg z-10 flex items-center justify-center"
+                                                        >
+                                                            ↑
+                                                        </button>
+                                                    )}
+                                                    
+                                                    {/* 아래로 이동 버튼 */}
+                                                    {inventory.findIndex(i => i.id === item.id) < inventory.length - 1 && (
+                                                        <button
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                moveItem(item.id, 'down');
+                                                            }}
+                                                            className="absolute -bottom-2 -left-2 w-8 h-8 bg-blue-600 text-white rounded-full font-bold text-lg shadow-lg z-10 flex items-center justify-center"
+                                                        >
+                                                            ↓
+                                                        </button>
+                                                    )}
+                                                </>
                                             )}
                                             <h3 className="text-sm sm:text-base font-bold text-black mb-1 sm:mb-2 text-center">
                                                 {item.name}
