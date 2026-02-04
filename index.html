@@ -209,7 +209,10 @@
             // 롱프레스 시작
             const handlePressStart = (id, e) => {
                 if (e) {
-                    e.preventDefault(); // 드래그/선택 방지
+                    // 마우스 이벤트에만 preventDefault (드래그 방지)
+                    if (e.type === 'mousedown') {
+                        e.preventDefault();
+                    }
                     e.stopPropagation();
                 }
                 
@@ -227,7 +230,6 @@
             // 롱프레스 취소 (타이머만 클리어, 상태는 유지)
             const handlePressEnd = (e) => {
                 if (e) {
-                    e.preventDefault();
                     e.stopPropagation();
                 }
                 if (pressTimer) {
