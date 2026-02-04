@@ -208,15 +208,36 @@
             
             // 롱프레스 시작
             const handlePressStart = (id, e) => {
-                e.stopPropagation();
+                if (e) {
+                    e.preventDefault(); // 드래그/선택 방지
+                    e.stopPropagation();
+                }
+                
+                // 기존 타이머 클리어
+                if (pressTimer) {
+                    clearTimeout(pressTimer);
+                }
+                
                 pressTimer = setTimeout(() => {
                     setLongPressItem(id);
+                    pressTimer = null;
                 }, 500); // 0.5초 꾹 누르기
             };
             
             // 롱프레스 취소 (타이머만 클리어, 상태는 유지)
             const handlePressEnd = (e) => {
-                if (e) e.stopPropagation();
+                if (e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                }
+                if (pressTimer) {
+                    clearTimeout(pressTimer);
+                    pressTimer = null;
+                }
+            };
+            
+            // 마우스/터치 이동 시 취소
+            const handlePressMove = (e) => {
                 if (pressTimer) {
                     clearTimeout(pressTimer);
                     pressTimer = null;
@@ -299,11 +320,23 @@
                                                 handleItemClick(item.id);
                                             }}
                                             onMouseDown={(e) => handlePressStart(item.id, e)}
-                                            onMouseUp={handlePressEnd}
-                                            onMouseLeave={handlePressEnd}
+                                            onMouseUp={(e) => handlePressEnd(e)}
+                                            onMouseLeave={(e) => handlePressMove(e)}
+                                            onMouseMove={(e) => {
+                                                if (pressTimer) {
+                                                    handlePressMove(e);
+                                                }
+                                            }}
                                             onTouchStart={(e) => handlePressStart(item.id, e)}
-                                            onTouchEnd={handlePressEnd}
-                                            onTouchCancel={handlePressEnd}
+                                            onTouchEnd={(e) => handlePressEnd(e)}
+                                            onTouchCancel={(e) => handlePressMove(e)}
+                                            onTouchMove={(e) => {
+                                                if (pressTimer) {
+                                                    handlePressMove(e);
+                                                }
+                                            }}
+                                            onContextMenu={(e) => e.preventDefault()}
+                                            style={{ userSelect: 'none', WebkitUserSelect: 'none' }}
                                             className={`border-2 rounded-xl p-2 sm:p-3 cursor-pointer transition-all ${
                                                 selectedItem === item.id
                                                     ? 'border-black bg-gray-200 shadow-lg'
